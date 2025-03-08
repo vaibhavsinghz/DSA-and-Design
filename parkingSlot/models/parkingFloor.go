@@ -31,6 +31,7 @@ func (pf *ParkingFloor) AssignSlot(vehicle IVehicle) (IParkingSlot, error) {
 			if err := slot.ParkVehicle(vehicle); err != nil {
 				return nil, err
 			}
+			pf.AvailableSlot[slot.GetSlotVehicleType()]--
 			return slot, nil
 		}
 	}

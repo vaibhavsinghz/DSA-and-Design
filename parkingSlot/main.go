@@ -2,12 +2,14 @@ package main
 
 import (
 	"Self/parkingSlot/models"
+	"Self/parkingSlot/service"
 	"fmt"
 )
 
 func main() {
 	fmt.Println("Welcome to parking slot")
-	vPark := models.NewParkingService("vPark")
+	defaultSlotSelection := service.NewDefaultSlotSelection()
+	vPark := service.NewParkingService("vPark", defaultSlotSelection)
 
 	for i := 0; i < 4; i++ {
 		vPark.AddFloor()

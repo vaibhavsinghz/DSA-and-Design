@@ -1,23 +1,26 @@
-package models
+package service
 
 import (
+	"Self/parkingSlot/models"
 	"errors"
 	"fmt"
 	"sync"
 )
 
 type ParkingService struct {
-	ID            string
-	ParkingFloors []IParkingFloor
-	ActiveTickets map[string]ITicket
-	mu            sync.Mutex
+	ID                    string
+	ParkingFloors         []models.IParkingFloor
+	ActiveTickets         map[string]models.ITicket
+	SlotSelectionStrategy ISlotSelectionStrategy
+	mu                    sync.Mutex
 }
 
-func NewParkingService(ID string) IParkingService {
+func NewParkingService(ID string, strategy ISlotSelectionStrategy) IParkingService {
 	return &ParkingService{
-		ID:            ID,
-		ParkingFloors: []IParkingFloor{},
-		ActiveTickets: make(map[string]ITicket),
+		ID:                    ID,
+		ParkingFloors:         []models.IParkingFloor{},
+		ActiveTickets:         make(map[string]models.ITicket),
+		SlotSelectionStrategy: strategy,
 	}
 }
 
@@ -26,11 +29,11 @@ func (ps *ParkingService) AddFloor() {
 	defer ps.mu.Unlock()
 
 	newFloorID := len(ps.ParkingFloors) + 1
-	parkingFloor := NewParkingFloor(newFloorID)
+	parkingFloor := models.NewParkingFloor(newFloorID)
 	ps.ParkingFloors = append(ps.ParkingFloors, parkingFloor)
 }
 
-func (ps *ParkingService) AddSlotToFloor(floorID int, vehicleType VehicleType) error {
+func (ps *ParkingService) AddSlotToFloor(floorID int, vehicleType models.VehicleType) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -44,21 +47,21 @@ func (ps *ParkingService) AddSlotToFloor(floorID int, vehicleType VehicleType) e
 	return nil
 }
 
-func (ps *ParkingService) Park(vehicleNo, colour string, vehicleType VehicleType) (ITicket, error) {
+func (ps *ParkingService) Park(vehicleNo, colour string, vehicleType models.VehicleType) (models.ITicket, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	vehicle := NewVehicle(vehicleType, vehicleNo, colour)
-	slot := ps.findAndAssignSlot(vehicle)
+	vehicle := models.NewVehicle(vehicleType, vehicleNo, colour)
+	slot := ps.SlotSelectionStrategy.FindAndAssignSlot(vehicle, ps.ParkingFloors)
 	if slot == nil {
 		return nil, errors.New("slot not found")
 	}
-	ticket := NewTicket(ps.ID, vehicle.GetVehicleNo(), slot.GetSlotID(), slot.GetSlotFloorID())
+	ticket := models.NewTicket(ps.ID, vehicle.GetVehicleNo(), slot.GetSlotID(), slot.GetSlotFloorID())
 	ps.ActiveTickets[ticket.GetID()] = ticket
 	return ticket, nil
 }
 
-func (ps *ParkingService) findAndAssignSlot(vehicle IVehicle) IParkingSlot {
+func (ps *ParkingService) findAndAssignSlot(vehicle models.IVehicle) models.IParkingSlot {
 	for _, floor := range ps.ParkingFloors {
 		if floor.IsSlotAvailable(vehicle.GetVehicleType()) {
 			slot, err := floor.AssignSlot(vehicle)
